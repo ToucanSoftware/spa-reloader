@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: toucan
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spa-reloader
+  namespace: toucan
+  labels:
+    app: spa-reloader
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spa-reloader
+  template:
+    metadata:
+      labels:
+        app: spa-reloader
+    spec:
+      containers:
+      - name: spa-reloader
+        image: docker.io/toucansoftware/spa-reloader:0.0.1
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPA_NAMESPACE
+          value: "toucan"
+        - name: SPA_NAME
+          value: "spa"
