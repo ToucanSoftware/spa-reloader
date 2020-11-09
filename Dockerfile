@@ -24,4 +24,6 @@ WORKDIR /
 COPY --from=builder /workspace/manager .
 USER nonroot:nonroot
 
+EXPOSE 8080
+
 ENTRYPOINT ["/manager"]

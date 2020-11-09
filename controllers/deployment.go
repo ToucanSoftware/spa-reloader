@@ -21,13 +21,14 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
-	//	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"go.uber.org/zap"
+
+	"github.com/ToucanSoftware/spa-reloader/pkg/ws"
 )
 
 var (
@@ -42,6 +43,8 @@ type DeploymentManager struct {
 	Name string
 	// informer created
 	informer cache.SharedIndexInformer
+	// WebSocket server
+	WSServer *ws.WebSockerServer
 }
 
 // NewSPAManager creates a new DeploymentController
@@ -49,16 +52,23 @@ func NewSPAManager(namespace string, name string) (*DeploymentManager, error) {
 	return &DeploymentManager{
 		Namespace: namespace,
 		Name:      name,
+		WSServer:  ws.NewWebSockerServer(),
 	}, nil
 }
 
 // Start starts listesting to changes in the deployments
 func (r *DeploymentManager) Start(done <-chan struct{}) error {
+	logger.Info("Starting WebSocket Informer")
+	go func() {
+		if err := r.WSServer.Run(); err != nil {
+			logger.Fatal(fmt.Sprintf("Error Starting WebSocket Informer: %v", err))
+		}
+	}()
+	logger.Info("WebSocket Informer Started")
 	logger.Info("Starting Deployment Controller")
-
 	go func() {
 		if err := r.listenAndServe(); err != nil {
-			logger.Fatal(fmt.Sprintf("listen: %s\n", err))
+			logger.Fatal(fmt.Sprintf("listen: %v", err))
 		}
 	}()
 	logger.Info("Deployment Controller Started")

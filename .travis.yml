@@ -14,7 +14,7 @@ script:
 deploy:
   - provider: script
     script: |
-      docker login --username=${DOCKER_USER} --password=${DOCKER_PASSWORD}
+      echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USER}" --password-stdin
       docker tag docker.io/toucansoftware/spa-reloader:0.0.${TRAVIS_BUILD_NUMBER} docker.io/toucansoftware/spa-reloader:latest
       docker push docker.io/toucansoftware/spa-reloader:0.0.${TRAVIS_BUILD_NUMBER}
       docker push docker.io/toucansoftware/spa-reloader:latest

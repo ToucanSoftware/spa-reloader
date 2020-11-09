@@ -17,20 +17,47 @@ limitations under the License.
 package ws
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/gorilla/websocket"
+	"go.uber.org/zap"
+)
+
+var (
+	logger, _ = zap.NewProduction(zap.Fields(zap.String("type", "ws")))
 )
 
 // WebSockerServer websocket server
 type WebSockerServer struct {
-	upgrader websocket.Upgrader
+	BindAddress string
+	upgrader    websocket.Upgrader
+	hub         *Hub
 }
 
 // NewWebSockerServer creates a new web socket server
 func NewWebSockerServer() *WebSockerServer {
 	return &WebSockerServer{
+		BindAddress: "0.0.0.0:8080",
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
 		},
+		hub: newHub(),
 	}
+}
+
+// Run runs the websocket server
+func (s *WebSockerServer) Run() error {
+	logger.Info(fmt.Sprintf("Starting WebSocket server at %s", s.BindAddress))
+	go s.hub.run()
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		conn, err := s.upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error creating upgrader: %v", err))
+			return
+		}
+		serveWs(s.hub, conn)
+	})
+	return http.ListenAndServe(s.BindAddress, nil)
 }
