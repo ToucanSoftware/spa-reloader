@@ -17,15 +17,54 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"go.uber.org/zap"
+	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/ToucanSoftware/spa-reloader/controllers"
 )
 
 var (
 	logger, _ = zap.NewProduction(zap.Fields(zap.String("type", "main")))
 )
 
-func main() {
-	logger.Info("Starting SPA Reloader")
+const (
+	// spaNamepapce is the name of the environment variable used to watch for changes in a namespace.
+	spaNamepapce string = "SPA_NAMESPACE"
+	// spaName is the name of the environment variable used to watch for changes in deployment name.
+	spaName string = "SPA_NAME"
+)
 
-	select {}
+const (
+	// defaultNamespace by default, only listen to changes in `default` namespace.
+	defaultNamespace string = "default"
+	// defaultName by default, only listen to all deployments.
+	defaultName string = ""
+)
+
+func main() {
+	namespace := getenv(spaNamepapce, defaultNamespace)
+	name := getenv(spaName, defaultName)
+
+	mgr, err := controllers.NewSPAManager(namespace, name)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Unable to start manager: %v", err))
+		os.Exit(1)
+	}
+
+	logger.Info("Starting SPA Reloader")
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		logger.Error(fmt.Sprintf("Error running manager: %v", err))
+		os.Exit(1)
+	}
+}
+
+func getenv(key, fallback string) string {
+	value := os.Getenv(key)
+	if len(value) == 0 {
+		return fallback
+	}
+	return value
 }
