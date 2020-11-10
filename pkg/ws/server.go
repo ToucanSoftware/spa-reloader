@@ -17,11 +17,15 @@ limitations under the License.
 package ws
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
+
+	"github.com/ToucanSoftware/spa-reloader/pkg/message"
 )
 
 var (
@@ -60,4 +64,15 @@ func (s *WebSockerServer) Run() error {
 		serveWs(s.hub, conn)
 	})
 	return http.ListenAndServe(s.BindAddress, nil)
+}
+
+// BroadcastMessage sends a message to all connected clients
+func (s *WebSockerServer) BroadcastMessage(message *message.ImageChangeMessage) error {
+	marshalledMessage, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+	marshalledMessage = bytes.TrimSpace(bytes.Replace(marshalledMessage, newline, space, -1))
+	s.hub.broadcast <- marshalledMessage
+	return nil
 }

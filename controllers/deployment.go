@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/ToucanSoftware/spa-reloader/pkg/message"
 	"strings"
 	"time"
 
@@ -145,27 +146,32 @@ func (r *DeploymentManager) handleDeploymentUpdate(old, current interface{}) {
 	var currImage = currentDeploy.Spec.Template.Spec.Containers[0].Image
 
 	if currImage == "" {
-		// wait for next resyc cycle
+		// wait for next resync cycle
 		return
-	}
-
-	if oldImage != currImage {
-		logger.Info(fmt.Sprintf("Image changed from %s to %s", oldDeploy.Spec.Template.Spec.Containers[0].Image, currentDeploy.Spec.Template.Spec.Containers[0].Image))
-		// Find Pods for the deployment and get status.ImageID for
 	}
 	pods, err := r.getPodsForDeploy(currentDeploy)
 	if err != nil {
 		logger.Error(fmt.Sprintf("error finding pods por deploy %s: %v\n", currentDeploy.GetName(), err))
 	} else {
 		for _, pod := range pods.Items {
-			var image = pod.Status.ContainerStatuses[0].Image
-			// Work on the the current immage
-			if currImage == image {
-				var imageID = pod.Status.ContainerStatuses[0].ImageID
-				var imageSHA256 = sha256FromImageID(imageID)
-				if imageSHA256 != r.CurrentImageSHA256 {
-					logger.Info(fmt.Sprintf("Detected Pod Image ID Change from %s to %s", oldImage, currImage))
-					r.CurrentImageSHA256 = imageSHA256
+			if len(pod.Status.ContainerStatuses) > 0 {
+				var image = pod.Status.ContainerStatuses[0].Image
+				// Work on the the current immage
+				if currImage == image {
+					var imageID = pod.Status.ContainerStatuses[0].ImageID
+					// Handle the case when pod is pending
+					if imageID != "" {
+						var imageSHA256 = sha256FromImageID(imageID)
+						if imageSHA256 != "" && imageSHA256 != r.CurrentImageSHA256 {
+							logger.Info(fmt.Sprintf("Detected Pod Image ID Change from %s to %s", oldImage, currImage))
+							r.CurrentImageSHA256 = imageSHA256
+							changeImageMessage := message.NewImageChangeMessage(r.Namespace, r.Name, currImage, imageSHA256)
+							err = r.WSServer.BroadcastMessage(changeImageMessage)
+							if err != nil {
+								logger.Error(fmt.Sprintf("error sending broadcast message: %v\n", err))
+							}
+						}
+					}
 				}
 			}
 		}
@@ -181,5 +187,8 @@ func (r *DeploymentManager) getPodsForDeploy(deploy *appsv1.Deployment) (*corev1
 
 func sha256FromImageID(imageID string) string {
 	sep := strings.Split(imageID, "@sha256:")
-	return sep[1]
+	if len(sep) > 1 {
+		return sep[1]
+	}
+	return ""
 }
