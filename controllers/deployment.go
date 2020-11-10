@@ -130,6 +130,7 @@ func (r *DeploymentManager) handleDeploymentUpdate(old, current interface{}) {
 
 	if oldDeploy.Spec.Template.Spec.Containers[0].Image != currentDeploy.Spec.Template.Spec.Containers[0].Image {
 		logger.Info(fmt.Sprintf("Image changed from %s to %s", oldDeploy.Spec.Template.Spec.Containers[0].Image, currentDeploy.Spec.Template.Spec.Containers[0].Image))
+		// Find Pods for the deployment and get status.ImageID for
 	}
 
 	logger.Info(fmt.Sprintf("Deployment [%s] is update", oldDeploy.Name))
