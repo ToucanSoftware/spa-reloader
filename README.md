@@ -22,8 +22,9 @@ The controller takes the following environment variables in order to configure i
 
 ## Change detection
 
-Every time a change in a deploy that controller is listening to is detected, a message like this one is dispatch
-to the clients connected to the web socket.
+Every time a change is detected in the deployments that the controller is listening to, a message is dispatch to the clients connected to the web socket.
+
+Here is an example of a message for the Deployment `spa` in Namespace `toucan`.
 
 ```json
 {
