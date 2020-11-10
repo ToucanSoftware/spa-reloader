@@ -19,6 +19,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"go.uber.org/zap"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -35,6 +36,8 @@ const (
 	spaNamepapce string = "SPA_NAMESPACE"
 	// spaName is the name of the environment variable used to watch for changes in deployment name.
 	spaName string = "SPA_NAME"
+	// spaResyncSeconds is the number of seconds to resync
+	spaResyncSeconds string = "SPA_RESYNC_SEC"
 )
 
 const (
@@ -42,13 +45,21 @@ const (
 	defaultNamespace string = "default"
 	// defaultName by default, only listen to all deployments.
 	defaultName string = ""
+	//defaultResyncSeconds by default we resync every 30 sec.
+	defaultResyncSeconds string = "30"
+	// defaultResyncSecondsValue by default we resync every 30 sec.
+	defaultResyncSecondsValue int = 10
 )
 
 func main() {
 	namespace := getenv(spaNamepapce, defaultNamespace)
 	name := getenv(spaName, defaultName)
-
-	mgr, err := controllers.NewSPAManager(namespace, name)
+	resync := getenv(spaResyncSeconds, defaultResyncSeconds)
+	resyncVal, err := strconv.Atoi(resync)
+	if err != nil {
+		resyncVal = defaultResyncSecondsValue
+	}
+	mgr, err := controllers.NewSPAManager(namespace, name, resyncVal)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Unable to start manager: %v", err))
 		os.Exit(1)

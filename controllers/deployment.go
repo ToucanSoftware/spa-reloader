@@ -17,11 +17,16 @@ limitations under the License.
 package controllers
 
 import (
+	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -41,18 +46,31 @@ type DeploymentManager struct {
 	Namespace string
 	// Name name of the deployment to listen to.
 	Name string
+	// Resync is the number of sec to execute resync
+	Resync int
+	// CurrentImageSHA256 stores the current SHA-256 of the container Image ID
+	CurrentImageSHA256 string
 	// informer created
 	informer cache.SharedIndexInformer
+	// Kubernetes Client Set
+	client *kubernetes.Clientset
 	// WebSocket server
 	WSServer *ws.WebSockerServer
 }
 
 // NewSPAManager creates a new DeploymentController
-func NewSPAManager(namespace string, name string) (*DeploymentManager, error) {
+func NewSPAManager(namespace string, name string, resync int) (*DeploymentManager, error) {
+	client, err := kubernetes.NewForConfig(ctrl.GetConfigOrDie())
+	if err != nil {
+		return nil, err
+	}
 	return &DeploymentManager{
-		Namespace: namespace,
-		Name:      name,
-		WSServer:  ws.NewWebSockerServer(),
+		Namespace:          namespace,
+		Name:               name,
+		Resync:             resync,
+		CurrentImageSHA256: "",
+		client:             client,
+		WSServer:           ws.NewWebSockerServer(),
 	}, nil
 }
 
@@ -80,11 +98,7 @@ func (r *DeploymentManager) Start(done <-chan struct{}) error {
 
 // listenAndServe implements the logic of the controller
 func (r *DeploymentManager) listenAndServe() error {
-	clientset, err := getClient()
-	if err != nil {
-		return err
-	}
-
+	var err error
 	var selector fields.Selector = fields.Everything()
 	if r.Name != "" {
 		selector, err = fields.ParseSelector(fmt.Sprintf("metadata.name=%s", r.Name))
@@ -92,9 +106,8 @@ func (r *DeploymentManager) listenAndServe() error {
 			return err
 		}
 	}
-
 	logger.Info(fmt.Sprintf("Creating Watchlist for Deployment %s at Namespace %s", r.Name, r.Namespace))
-	watchList := cache.NewListWatchFromClient(clientset.AppsV1().RESTClient(), "deployments", r.Namespace, selector)
+	watchList := cache.NewListWatchFromClient(r.client.AppsV1().RESTClient(), "deployments", r.Namespace, selector)
 
 	logger.Info(fmt.Sprintf("Creating Informer for Deployment %s at Namespace %s", r.Name, r.Namespace))
 
@@ -102,7 +115,7 @@ func (r *DeploymentManager) listenAndServe() error {
 	informer := cache.NewSharedIndexInformer(
 		watchList,
 		&appsv1.Deployment{},
-		time.Second*10,
+		time.Second*time.Duration(r.Resync),
 		cache.Indexers{},
 	)
 
@@ -128,14 +141,45 @@ func (r *DeploymentManager) handleDeploymentUpdate(old, current interface{}) {
 	oldDeploy := old.(*appsv1.Deployment)
 	currentDeploy := current.(*appsv1.Deployment)
 
-	if oldDeploy.Spec.Template.Spec.Containers[0].Image != currentDeploy.Spec.Template.Spec.Containers[0].Image {
+	var oldImage = oldDeploy.Spec.Template.Spec.Containers[0].Image
+	var currImage = currentDeploy.Spec.Template.Spec.Containers[0].Image
+
+	if currImage == "" {
+		// wait for next resyc cycle
+		return
+	}
+
+	if oldImage != currImage {
 		logger.Info(fmt.Sprintf("Image changed from %s to %s", oldDeploy.Spec.Template.Spec.Containers[0].Image, currentDeploy.Spec.Template.Spec.Containers[0].Image))
 		// Find Pods for the deployment and get status.ImageID for
 	}
-
-	logger.Info(fmt.Sprintf("Deployment [%s] is update", oldDeploy.Name))
+	pods, err := r.getPodsForDeploy(currentDeploy)
+	if err != nil {
+		logger.Error(fmt.Sprintf("error finding pods por deploy %s: %v\n", currentDeploy.GetName(), err))
+	} else {
+		for _, pod := range pods.Items {
+			var image = pod.Status.ContainerStatuses[0].Image
+			// Work on the the current immage
+			if currImage == image {
+				var imageID = pod.Status.ContainerStatuses[0].ImageID
+				var imageSHA256 = sha256FromImageID(imageID)
+				if imageSHA256 != r.CurrentImageSHA256 {
+					logger.Info(fmt.Sprintf("Detected Pod Image ID Change from %s to %s", oldImage, currImage))
+					r.CurrentImageSHA256 = imageSHA256
+				}
+			}
+		}
+	}
 }
 
-func getClient() (*kubernetes.Clientset, error) {
-	return kubernetes.NewForConfig(ctrl.GetConfigOrDie())
+func (r *DeploymentManager) getPodsForDeploy(deploy *appsv1.Deployment) (*corev1.PodList, error) {
+	set := labels.Set(deploy.Spec.Selector.MatchLabels)
+	listOptions := metav1.ListOptions{LabelSelector: set.AsSelector().String()}
+	pods, err := r.client.CoreV1().Pods(deploy.Namespace).List(context.TODO(), listOptions)
+	return pods, err
+}
+
+func sha256FromImageID(imageID string) string {
+	sep := strings.Split(imageID, "@sha256:")
+	return sep[1]
 }
