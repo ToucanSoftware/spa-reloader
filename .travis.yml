@@ -12,12 +12,12 @@ script:
   - make docker-build VERSION=0.0.${TRAVIS_BUILD_NUMBER}
 
 deploy:
-  - provider: script
-    script: |
-      echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USER}" --password-stdin
-      docker tag docker.io/toucansoftware/spa-reloader:0.0.${TRAVIS_BUILD_NUMBER} docker.io/toucansoftware/spa-reloader:latest
-      docker push docker.io/toucansoftware/spa-reloader:0.0.${TRAVIS_BUILD_NUMBER}
-      docker push docker.io/toucansoftware/spa-reloader:latest
-    skip_cleanup: true
-    on:
-      branch: main
+- provider: script
+  script: |
+    echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USER}" --password-stdin 
+    docker tag docker.io/toucansoftware/spa-reloader:0.0.${TRAVIS_BUILD_NUMBER} docker.io/toucansoftware/spa-reloader:latest
+    docker push docker.io/toucansoftware/spa-reloader:0.0.${TRAVIS_BUILD_NUMBER}
+    docker push docker.io/toucansoftware/spa-reloader:latest
+  skip_cleanup: true
+  on:
+    branch: main
