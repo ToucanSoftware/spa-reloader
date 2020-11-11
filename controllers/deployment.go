@@ -60,7 +60,7 @@ type DeploymentManager struct {
 }
 
 // NewSPAManager creates a new DeploymentController
-func NewSPAManager(namespace string, name string, resync int) (*DeploymentManager, error) {
+func NewSPAManager(namespace string, name string, resync int, websocketPort int) (*DeploymentManager, error) {
 	client, err := kubernetes.NewForConfig(ctrl.GetConfigOrDie())
 	if err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func NewSPAManager(namespace string, name string, resync int) (*DeploymentManage
 		Resync:             resync,
 		CurrentImageSHA256: "",
 		client:             client,
-		WSServer:           ws.NewWebSockerServer(),
+		WSServer:           ws.NewWebSockerServer(websocketPort),
 	}, nil
 }
 

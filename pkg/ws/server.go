@@ -40,12 +40,15 @@ type WebSockerServer struct {
 }
 
 // NewWebSockerServer creates a new web socket server
-func NewWebSockerServer() *WebSockerServer {
+func NewWebSockerServer(websocketPort int) *WebSockerServer {
 	return &WebSockerServer{
-		BindAddress: "0.0.0.0:8080",
+		BindAddress: fmt.Sprintf("0.0.0.0:%d", websocketPort),
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
 		},
 		hub: newHub(),
 	}

@@ -38,6 +38,8 @@ const (
 	spaName string = "SPA_NAME"
 	// spaResyncSeconds is the number of seconds to resync
 	spaResyncSeconds string = "SPA_RESYNC_SEC"
+	// spaWebSocketPort port to bind the websocket server
+	spaWebSocketPort string = "SPA_WEBSOCKET_PORT"
 )
 
 const (
@@ -49,17 +51,29 @@ const (
 	defaultResyncSeconds string = "30"
 	// defaultResyncSecondsValue by default we resync every 30 sec.
 	defaultResyncSecondsValue int = 10
+	// defaultWebSocketPort by default we listent in port 8080
+	defaultWebSocketPort string = "8080"
+	// defaultWebSocketPortValue by default we listent in port 8080
+	defaultWebSocketPortValue int = 8080
 )
 
 func main() {
 	namespace := getenv(spaNamepapce, defaultNamespace)
 	name := getenv(spaName, defaultName)
+
 	resync := getenv(spaResyncSeconds, defaultResyncSeconds)
 	resyncVal, err := strconv.Atoi(resync)
 	if err != nil {
 		resyncVal = defaultResyncSecondsValue
 	}
-	mgr, err := controllers.NewSPAManager(namespace, name, resyncVal)
+
+	websocketPort := getenv(spaWebSocketPort, defaultWebSocketPort)
+	websocketPortVal, err := strconv.Atoi(websocketPort)
+	if err != nil {
+		websocketPortVal = defaultWebSocketPortValue
+	}
+
+	mgr, err := controllers.NewSPAManager(namespace, name, resyncVal, websocketPortVal)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Unable to start manager: %v", err))
 		os.Exit(1)

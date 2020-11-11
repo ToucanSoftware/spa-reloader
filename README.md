@@ -19,6 +19,7 @@ The controller takes the following environment variables in order to configure i
 - **SPA_NAMESPACE**: is the name of the environment variable used to watch for changes in a namespace.
 - **SPA_NAME**: is the name of the environment variable used to watch for changes in deployment name.
 - **SPA_RESYNC_SEC**: is the number of seconds to resync.
+- **SPA_WEBSOCKET_PORT**: is the port number of the websocket. Change this value to bind the websocket server to another port. Be aware that the current Dockerfile exposes port `8080` for the websocket server.
 
 ## Change detection
 
