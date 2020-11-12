@@ -30,17 +30,20 @@ type ImageChangeMessage struct {
 	// Image is the name of the image
 	Image string `json:"image,omitempty"`
 	// ImageSHA256 is the SHA-256 of the container Image ID
-	ImageSHA256 string `json:"sha256,omitempty"`
+	CurrentImageSHA256 string `json:"current_sha256,omitempty"`
+	// ImageSHA256 is the SHA-256 of the container Image ID
+	PreviousImageSHA256 string `json:"previous_sha256,omitempty"`
 }
 
 // NewImageChangeMessage creates a new change image message
-func NewImageChangeMessage(namespace string, name string, image string, imageSHA256 string) *ImageChangeMessage {
+func NewImageChangeMessage(namespace string, name string, image string, currentImageSHA256 string, previousImageSHA256 string) *ImageChangeMessage {
 	now := time.Now()
 	return &ImageChangeMessage{
-		CreatedAt:   now,
-		Namespace:   namespace,
-		Name:        name,
-		Image:       image,
-		ImageSHA256: imageSHA256,
+		CreatedAt:           now,
+		Namespace:           namespace,
+		Name:                name,
+		Image:               image,
+		CurrentImageSHA256:  currentImageSHA256,
+		PreviousImageSHA256: previousImageSHA256,
 	}
 }

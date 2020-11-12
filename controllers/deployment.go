@@ -164,12 +164,12 @@ func (r *DeploymentManager) handleDeploymentUpdate(old, current interface{}) {
 						var imageSHA256 = sha256FromImageID(imageID)
 						if imageSHA256 != "" && imageSHA256 != r.CurrentImageSHA256 {
 							logger.Info(fmt.Sprintf("Detected Pod Image ID Change from %s to %s", oldImage, currImage))
-							r.CurrentImageSHA256 = imageSHA256
-							changeImageMessage := message.NewImageChangeMessage(r.Namespace, r.Name, currImage, imageSHA256)
+							changeImageMessage := message.NewImageChangeMessage(r.Namespace, r.Name, currImage, imageSHA256, r.CurrentImageSHA256)
 							err = r.WSServer.BroadcastMessage(changeImageMessage)
 							if err != nil {
 								logger.Error(fmt.Sprintf("error sending broadcast message: %v\n", err))
 							}
+							r.CurrentImageSHA256 = imageSHA256
 						}
 					}
 				}
