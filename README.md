@@ -5,12 +5,12 @@
 SPA Reloader provides a Kubernetes Controller that listens to changes in Deployments container image changes,
 and informes Single Page Applications via WebSockets.
 
-**Problem**: Single Page Application (SPA) are great technology, they run on the client browser and do not need round trip to the server every time we move across the application. That means we have to load the entire (or part of the) application in the browser, which will tipically communicate with a REST API in the server. But if we upgrade the SPA, unless we reload the page, the browser has not standard way of knowing if the application has changed and needs to reload it.
+**Problem**: Single Page Application (SPA) are great technology, they run on the client browser and do not need round trip to the server every time we move across the application. That means we have to load the entire (or part of the) application in the browser, which will tipically communicate with a REST API in the server. But if we upgrade the SPA, unless we reload the page, the browser has not standard way of knowing if the application has changed and needs to get reloaded.
 
-**Solution**: The solution proposed is implies a Server Side component and a Client Side component.
+**Solution**: The solution proposed includes a Server Side component and a Client Side component.
 
 - Server Side: Use a Kubernetes Controller that listen to changes in the Deployment configuration specified by the user and send a WebSocket message to clients.
-- Client Side: Use a websocket client that subscripts to the server and stores the current image version. If the client recieves a message with a different image version it would fire an event to inform the applition that a it's running diffrent version of the applition and the application can issue an reload from the server to upgrade to the latest.
+- Client Side: Use a websocket client that subscribes to the server and stores the current image version. If the client recieves a message with a different image version it would fire an event to inform that a new version of the applition it's running. Click [here](https://github.com/ToucanSoftware/spa-reloader-vue) to get to the Client Side Repo.
 
 ## Configuration
 
@@ -23,7 +23,7 @@ The controller takes the following environment variables in order to configure i
 
 ## Change detection
 
-Every time a change is detected in the deployments that the controller is listening to, a message is dispatch to the clients connected to the web socket.
+Every time a change is detected in the deployment that the controller is listening to, a message is dispatched to the clients connected to the web socket.
 
 Here is an example of a message for the Deployment `spa` in Namespace `toucan`.
 
