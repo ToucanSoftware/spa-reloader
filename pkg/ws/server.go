@@ -59,6 +59,7 @@ func (s *WebSockerServer) Run() error {
 	logger.Info(fmt.Sprintf("Starting WebSocket server at %s", s.BindAddress))
 	go s.hub.run()
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		logger.Info(fmt.Sprintf("Received WebSocket connect request from: %s", r.Host))
 		conn, err := s.upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			logger.Error(fmt.Sprintf("Error creating upgrader: %v", err))
