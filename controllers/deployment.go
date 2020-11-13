@@ -51,6 +51,8 @@ type DeploymentManager struct {
 	Resync int
 	// CurrentImageSHA256 stores the current SHA-256 of the container Image ID
 	CurrentImageSHA256 string
+	// CurrentImageName is the name of the current image
+	CurrentImageName string
 	// informer created
 	informer cache.SharedIndexInformer
 	// Kubernetes Client Set
@@ -157,8 +159,7 @@ func (r *DeploymentManager) handleDeploymentUpdate(old, current interface{}) {
 			if len(pod.Status.ContainerStatuses) > 0 {
 				var image = pod.Status.ContainerStatuses[0].Image
 				// Work on the the current immage
-				logger.Info(fmt.Sprintf("Pod Image %s, Current Image: %s", image, currImage))
-				//if currImage == image {
+				logger.Info(fmt.Sprintf("Pod Image %s, Current Image: %s", image, r.CurrentImageName))
 				var imageID = pod.Status.ContainerStatuses[0].ImageID
 				// Handle the case when pod is pending
 				if imageID != "" {
@@ -167,13 +168,13 @@ func (r *DeploymentManager) handleDeploymentUpdate(old, current interface{}) {
 						logger.Info(fmt.Sprintf("Detected Pod Image ID Change from %s to %s", oldImage, currImage))
 						changeImageMessage := message.NewImageChangeMessage(r.Namespace, r.Name, currImage, imageSHA256, r.CurrentImageSHA256)
 						r.CurrentImageSHA256 = imageSHA256
+						r.CurrentImageName = currImage
 						err = r.WSServer.BroadcastMessage(changeImageMessage)
 						if err != nil {
 							logger.Error(fmt.Sprintf("error sending broadcast message: %v\n", err))
 						}
 					}
 				}
-				//}
 			}
 		}
 	}
