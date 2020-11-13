@@ -17,6 +17,7 @@ limitations under the License.
 package ws
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -56,7 +57,7 @@ type Client struct {
 func serveWs(hub *Hub, conn *websocket.Conn) {
 	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
 	client.hub.register <- client
-
+	logger.Info(fmt.Sprintf("Client Registered from %s", conn.RemoteAddr().String()))
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
 	go client.writePump()
