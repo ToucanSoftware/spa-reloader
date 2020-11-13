@@ -192,7 +192,8 @@ func (r *DeploymentManager) handleDeploymentUpdate(old, current interface{}) {
 						logger.Error(fmt.Sprintf("error parsing image name %s: %v", image, err))
 					}
 					// Work on the the current immage
-					if podNamed.String() == currDeployNamed.String() &&
+					if podNamed != nil && currDeployNamed != nil && r.CurrentNamedImage != nil &&
+						podNamed.String() == currDeployNamed.String() &&
 						podNamed.String() != r.CurrentNamedImage.String() {
 						var imageID = pod.Status.ContainerStatuses[0].ImageID
 						// Handle the case when pod is pending
