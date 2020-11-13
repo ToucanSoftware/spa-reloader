@@ -21,8 +21,10 @@ import (
 	"fmt"
 	"github.com/ToucanSoftware/spa-reloader/pkg/message"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,13 +54,16 @@ type DeploymentManager struct {
 	// CurrentImageSHA256 stores the current SHA-256 of the container Image ID
 	CurrentImageSHA256 string
 	// CurrentImageName is the name of the current image
-	CurrentImageName string
+	CurrentNamedImage reference.Named
 	// informer created
 	informer cache.SharedIndexInformer
 	// Kubernetes Client Set
 	client *kubernetes.Clientset
 	// WebSocket server
 	WSServer *ws.WebSockerServer
+	// Mutex used for Sending Broadcast message and updateing current container
+	// information
+	mutex *sync.Mutex
 }
 
 // NewSPAManager creates a new DeploymentController
@@ -73,6 +78,7 @@ func NewSPAManager(namespace string, name string, resync int, websocketPort int)
 		Resync:             resync,
 		CurrentImageSHA256: "",
 		client:             client,
+		mutex:              &sync.Mutex{},
 		WSServer:           ws.NewWebSockerServer(websocketPort),
 	}, nil
 }
@@ -138,40 +144,73 @@ func (r *DeploymentManager) listenAndServe() error {
 func (r *DeploymentManager) handleDeploymentAdd(obj interface{}) {
 	deploy := obj.(*appsv1.Deployment)
 	logger.Info(fmt.Sprintf("Deployment [%s] is added", deploy.Name))
+
+	pods, err := r.getPodsForDeploy(deploy)
+	if err != nil {
+		logger.Error(fmt.Sprintf("error finding pods por deploy %s: %v", deploy.GetName(), err))
+	} else {
+		for _, pod := range pods.Items {
+			if len(pod.Status.ContainerStatuses) > 0 {
+				var image = pod.Status.ContainerStatuses[0].Image
+				named, err := reference.ParseNormalizedNamed(image)
+				if err != nil {
+					logger.Error(fmt.Sprintf("error parsing image name %s: %v", image, err))
+				}
+				var imageID = pod.Status.ContainerStatuses[0].ImageID
+				if imageID != "" {
+					var imageSHA256 = sha256FromImageID(imageID)
+					r.CurrentNamedImage = named
+					r.CurrentImageSHA256 = imageSHA256
+					return
+				}
+			}
+		}
+	}
 }
 
 func (r *DeploymentManager) handleDeploymentUpdate(old, current interface{}) {
-	oldDeploy := old.(*appsv1.Deployment)
 	currentDeploy := current.(*appsv1.Deployment)
-
-	var oldImage = oldDeploy.Spec.Template.Spec.Containers[0].Image
 	var currImage = currentDeploy.Spec.Template.Spec.Containers[0].Image
-
-	if currImage == "" {
+	currDeployNamed, err := reference.ParseNormalizedNamed(currImage)
+	if err != nil {
+		logger.Error(fmt.Sprintf("error parsing image name %s: %v", currImage, err))
+	}
+	if currDeployNamed.String() == "" {
 		// wait for next resync cycle
 		return
 	}
 	pods, err := r.getPodsForDeploy(currentDeploy)
 	if err != nil {
-		logger.Error(fmt.Sprintf("error finding pods por deploy %s: %v\n", currentDeploy.GetName(), err))
+		logger.Error(fmt.Sprintf("error finding pods por deploy %s: %v", currentDeploy.GetName(), err))
 	} else {
 		for _, pod := range pods.Items {
-			if len(pod.Status.ContainerStatuses) > 0 {
-				var image = pod.Status.ContainerStatuses[0].Image
-				// Work on the the current immage
-				logger.Info(fmt.Sprintf("Pod Image %s, Current Image: %s", image, r.CurrentImageName))
-				var imageID = pod.Status.ContainerStatuses[0].ImageID
-				// Handle the case when pod is pending
-				if imageID != "" {
-					var imageSHA256 = sha256FromImageID(imageID)
-					if imageSHA256 != "" && imageSHA256 != r.CurrentImageSHA256 {
-						logger.Info(fmt.Sprintf("Detected Pod Image ID Change from %s to %s", oldImage, currImage))
-						changeImageMessage := message.NewImageChangeMessage(r.Namespace, r.Name, currImage, imageSHA256, r.CurrentImageSHA256)
-						r.CurrentImageSHA256 = imageSHA256
-						r.CurrentImageName = currImage
-						err = r.WSServer.BroadcastMessage(changeImageMessage)
-						if err != nil {
-							logger.Error(fmt.Sprintf("error sending broadcast message: %v\n", err))
+			if pod.Status.Phase == corev1.PodRunning {
+				if len(pod.Status.ContainerStatuses) > 0 {
+					var image = pod.Status.ContainerStatuses[0].Image
+					podNamed, err := reference.ParseNormalizedNamed(image)
+					if err != nil {
+						logger.Error(fmt.Sprintf("error parsing image name %s: %v", image, err))
+					}
+					// Work on the the current immage
+					if podNamed.String() == currDeployNamed.String() &&
+						podNamed.String() != r.CurrentNamedImage.String() {
+						var imageID = pod.Status.ContainerStatuses[0].ImageID
+						// Handle the case when pod is pending
+						if imageID != "" {
+							var imageSHA256 = sha256FromImageID(imageID)
+							if imageSHA256 != "" && imageSHA256 != r.CurrentImageSHA256 {
+								r.mutex.Lock()
+								logger.Info(fmt.Sprintf("Detected Pod Image ID Change from %s to %s", r.CurrentNamedImage.String(), podNamed.String()))
+								changeImageMessage := message.NewImageChangeMessage(r.Namespace, r.Name, currDeployNamed.String(), imageSHA256, r.CurrentImageSHA256)
+								r.CurrentImageSHA256 = imageSHA256
+								r.CurrentNamedImage = podNamed
+								err = r.WSServer.BroadcastMessage(changeImageMessage)
+								if err != nil {
+									logger.Error(fmt.Sprintf("error sending broadcast message: %v\n", err))
+								}
+								r.mutex.Unlock()
+								return
+							}
 						}
 					}
 				}
