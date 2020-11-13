@@ -179,6 +179,7 @@ func (r *DeploymentManager) handleDeploymentUpdate(old, current interface{}) {
 		// wait for next resync cycle
 		return
 	}
+	logger.Info(fmt.Sprintf("Processing Deployment %s", currDeployNamed.String()))
 	pods, err := r.getPodsForDeploy(currentDeploy)
 	if err != nil {
 		logger.Error(fmt.Sprintf("error finding pods por deploy %s: %v", currentDeploy.GetName(), err))
@@ -192,25 +193,39 @@ func (r *DeploymentManager) handleDeploymentUpdate(old, current interface{}) {
 						logger.Error(fmt.Sprintf("error parsing image name %s: %v", image, err))
 					}
 					// Work on the the current immage
-					if podNamed != nil && currDeployNamed != nil && r.CurrentNamedImage != nil &&
-						podNamed.String() == currDeployNamed.String() &&
-						podNamed.String() != r.CurrentNamedImage.String() {
+					if (r.CurrentNamedImage == nil) ||
+						(podNamed.String() == currDeployNamed.String() &&
+							podNamed.String() != r.CurrentNamedImage.String()) {
 						var imageID = pod.Status.ContainerStatuses[0].ImageID
 						// Handle the case when pod is pending
 						if imageID != "" {
 							var imageSHA256 = sha256FromImageID(imageID)
 							if imageSHA256 != "" && imageSHA256 != r.CurrentImageSHA256 {
 								r.mutex.Lock()
-								logger.Info(fmt.Sprintf("Detected Pod Image ID Change from %s to %s", r.CurrentNamedImage.String(), podNamed.String()))
-								changeImageMessage := message.NewImageChangeMessage(r.Namespace, r.Name,
-									&message.ImageDescription{
-										ImageName:   currDeployNamed.String(),
-										ImageSHA256: imageSHA256,
-									},
-									&message.ImageDescription{
-										ImageName:   r.CurrentNamedImage.String(),
-										ImageSHA256: r.CurrentImageSHA256,
-									})
+								var changeImageMessage *message.ImageChangeMessage
+								if r.CurrentNamedImage != nil {
+									logger.Info(fmt.Sprintf("Detected Pod Image ID Change from %s to %s", r.CurrentNamedImage.String(), podNamed.String()))
+									changeImageMessage = message.NewImageChangeMessage(r.Namespace, r.Name,
+										&message.ImageDescription{
+											ImageName:   currDeployNamed.String(),
+											ImageSHA256: imageSHA256,
+										},
+										&message.ImageDescription{
+											ImageName:   r.CurrentNamedImage.String(),
+											ImageSHA256: r.CurrentImageSHA256,
+										})
+								} else {
+									logger.Info(fmt.Sprintf("Detected Pod Image ID Change to %s", podNamed.String()))
+									changeImageMessage = message.NewImageChangeMessage(r.Namespace, r.Name,
+										&message.ImageDescription{
+											ImageName:   currDeployNamed.String(),
+											ImageSHA256: imageSHA256,
+										},
+										&message.ImageDescription{
+											ImageName:   "",
+											ImageSHA256: r.CurrentImageSHA256,
+										})
+								}
 								r.CurrentImageSHA256 = imageSHA256
 								r.CurrentNamedImage = podNamed
 								err = r.WSServer.BroadcastMessage(changeImageMessage)
