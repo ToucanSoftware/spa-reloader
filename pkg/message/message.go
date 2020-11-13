@@ -20,6 +20,14 @@ import (
 	"time"
 )
 
+// ImageDescription description a Docker Image
+type ImageDescription struct {
+	// Image is the name of the image
+	ImageName string `json:"name,omitempty"`
+	// SHA-256 of the Docker image
+	ImageSHA256 string `json:"sha256,omitempty"`
+}
+
 // ImageChangeMessage is the message for informing the clients that a images has changed
 type ImageChangeMessage struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -27,23 +35,22 @@ type ImageChangeMessage struct {
 	Namespace string `json:"namespace,omitempty"`
 	// Name name of the deployment to listen to.
 	Name string `json:"name,omitempty"`
-	// Image is the name of the image
-	Image string `json:"image,omitempty"`
 	// ImageSHA256 is the SHA-256 of the container Image ID
-	CurrentImageSHA256 string `json:"current_sha256,omitempty"`
+	CurrentImage *ImageDescription `json:"current_image,omitempty"`
 	// ImageSHA256 is the SHA-256 of the container Image ID
-	PreviousImageSHA256 string `json:"previous_sha256,omitempty"`
+	PreviousImage *ImageDescription `json:"previous_image,omitempty"`
 }
 
 // NewImageChangeMessage creates a new change image message
-func NewImageChangeMessage(namespace string, name string, image string, currentImageSHA256 string, previousImageSHA256 string) *ImageChangeMessage {
+func NewImageChangeMessage(namespace string, name string,
+	currentImage *ImageDescription,
+	previousImage *ImageDescription) *ImageChangeMessage {
 	now := time.Now()
 	return &ImageChangeMessage{
-		CreatedAt:           now,
-		Namespace:           namespace,
-		Name:                name,
-		Image:               image,
-		CurrentImageSHA256:  currentImageSHA256,
-		PreviousImageSHA256: previousImageSHA256,
+		CreatedAt:     now,
+		Namespace:     namespace,
+		Name:          name,
+		CurrentImage:  currentImage,
+		PreviousImage: previousImage,
 	}
 }

@@ -201,7 +201,15 @@ func (r *DeploymentManager) handleDeploymentUpdate(old, current interface{}) {
 							if imageSHA256 != "" && imageSHA256 != r.CurrentImageSHA256 {
 								r.mutex.Lock()
 								logger.Info(fmt.Sprintf("Detected Pod Image ID Change from %s to %s", r.CurrentNamedImage.String(), podNamed.String()))
-								changeImageMessage := message.NewImageChangeMessage(r.Namespace, r.Name, currDeployNamed.String(), imageSHA256, r.CurrentImageSHA256)
+								changeImageMessage := message.NewImageChangeMessage(r.Namespace, r.Name,
+									&message.ImageDescription{
+										ImageName:   currDeployNamed.String(),
+										ImageSHA256: imageSHA256,
+									},
+									&message.ImageDescription{
+										ImageName:   r.CurrentNamedImage.String(),
+										ImageSHA256: r.CurrentImageSHA256,
+									})
 								r.CurrentImageSHA256 = imageSHA256
 								r.CurrentNamedImage = podNamed
 								err = r.WSServer.BroadcastMessage(changeImageMessage)
