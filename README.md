@@ -12,6 +12,8 @@ and informes Single Page Applications via WebSockets.
 - Server Side: Use a Kubernetes Controller that listen to changes in the Deployment configuration specified by the user and send a WebSocket message to clients.
 - Client Side: Use a websocket client that subscribes to the server and stores the current image version. If the client recieves a message with a different image version it would fire an event to inform that a new version of the applition it's running. Click [here](https://github.com/ToucanSoftware/spa-reloader-vue) to get to the Client Side Repo.
 
+You can take a look at the Demo Project [here](https://github.com/ToucanSoftware/spa-reloader-demo).
+
 ## Configuration
 
 The controller takes the following environment variables in order to configure its behavior.
