@@ -1,4 +1,5 @@
 ![Publish Docker image](https://github.com/ToucanSoftware/spa-reloader/workflows/Publish%20Docker%20image/badge.svg) [![Go Report Card](https://goreportcard.com/badge/github.com/ToucanSoftware/spa-reloader)](https://goreportcard.com/report/github.com/ToucanSoftware/spa-reloader) [![GoDoc](https://godoc.org/github.com/ToucanSoftware/spa-reloader?status.svg)](https://godoc.org/github.com/ToucanSoftware/spa-reloader)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FToucanSoftware%2Fspa-reloader.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FToucanSoftware%2Fspa-reloader?ref=badge_shield)
 
 # SPA Reloader
 
@@ -38,3 +39,7 @@ Here is an example of a message for the Deployment `spa` in Namespace `toucan`.
   "sha256": "32fdf92b4e986e109e4db0865758020cb0c3b70d6ba80d02fe87bad5cc3dc228"
 }
 ```
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FToucanSoftware%2Fspa-reloader.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FToucanSoftware%2Fspa-reloader?ref=badge_large)
